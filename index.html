@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Timetable Generator</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <h1>Timetable Generator</h1>
+  <div id="timetable"></div>
+  <script>
+    // Define the list of subjects
+    const subjects = [
+      "Math",
+      "Science",
+      "History",
+      "English",
+      "Art",
+      "Music",
+    ];
+
+    // Define the list of available faculty members for each subject, along with their ratings
+    const faculty = {
+      "Math": [
+        { name: "John", rating: 4.5 },
+        { name: "Jane", rating: 4.7 },
+        { name: "Bob", rating: 3.9 },
+      ],
+      "Science": [
+        { name: "Jane", rating: 4.5 },
+        { name: "Bob", rating: 4.2 },
+        { name: "John", rating: 4.0 },
+      ],
+      "History": [
+        { name: "Bob", rating: 4.3 },
+        { name: "John", rating: 4.1 },
+        { name: "Jane", rating: 3.9 },
+      ],
+      "English": [
+        { name: "Jane", rating: 4.6 },
+        { name: "John", rating: 4.3 },
+        { name: "Bob", rating: 4.0 },
+      ],
+      "Art": [
+        { name: "Bob", rating: 4.5 },
+        { name: "Jane", rating: 4.2 },
+        { name: "John", rating: 3.8 },
+      ],
+      "Music": [
+        { name: "John", rating: 4.4 },
+        { name: "Bob", rating: 4.1 },
+        { name: "Jane", rating: 3.8 },
+      ],
+    };
+
+    // Define the distance matrix between all pairs of subjects
+    const distances = [
+      [0, 3, 5, 2, 4, 6],
+      [3, 0, 4, 5, 2, 6],
+      [5, 4, 0, 3, 6, 2],
+      [2, 5, 3, 0, 4, 6],
+      [4, 2, 6, 4, 0, 3],
+      [6, 6, 2, 6, 3, 0],
+    ];
+
+    // Define the function to calculate the total distance of a path through all subjects
+    function totalDistance(path) {
+      let distance = 0;
+      for (let i = 0; i < path.length - 1; i++) {
+        distance += distances[path[i]][path[i+1]];
+      }
+      distance += distances[path[path.length-1]][path[0]];
+      return distance;
+    }
+
+    // Find the optimal order to teach all the subjects using
+// Define the genetic algorithm parameters
+const POPULATION_SIZE = 50;
+const NUM_GENERATIONS = 100;
+const MUTATION_RATE = 0.1;
+
+// Create the initial population of possible subject orders
+let population = [];
+for (let i = 0; i < POPULATION_SIZE; i++) {
+  population.push(d3.shuffle([...Array(subjects.length).keys()]));
+}
+
+// Define the fitness function for each subject order
+function fitness(order) {
+  let score = 0;
+  for (let i = 0; i < order.length; i++) {
+    let subject = subjects[order[i]];
+    let topFaculty = faculty[subject][0];
+    if (topFaculty.name === "John" && topFaculty.rating >= 4.4) {
+      score += 1;
+    }
+    if (topFaculty.name === "Jane" && topFaculty.rating >= 4.4) {
+      score += 1;
+    }
+  }
+  return score;
+}
+
+// Define the function to perform a single generation of the genetic algorithm
+function generation() {
+  // Evaluate the fitness of each subject order
+  let fitnessScores = [];
+  for (let i = 0; i < population.length; i++) {
+    let score = fitness(population[i]);
+    fitnessScores.push({order: population[i], score: score});
+  }
+  fitnessScores.sort((a, b) => b.score - a.score);
+
+  // Create the next generation of subject orders using selection, crossover, and mutation
+  let newPopulation = [];
+  for (let i = 0; i < POPULATION_SIZE; i++) {
+    let parentA = fitnessScores[d3.randInt(0, POPULATION_SIZE-1)].order;
+    let parentB = fitnessScores[d3.randInt(0, POPULATION_SIZE-1)].order;
+    let child = crossover(parentA, parentB);
+child = mutate(child);
+newPopulation.push(child);
+}
+
+// Update the population with the new generation
+population = newPopulation;
+}
+
+// Define the function to perform crossover between two parent subject orders
+// Define the function to perform crossover between two parent subject orders
+function crossover(parentA, parentB) {
+  // Choose a random point to split the parents
+  let splitPoint = d3.randInt(1, subjects.length-1);
+
+  // Create the child by combining the first half of parent A with the second half of parent B
+  let child = parentA.slice(0, splitPoint);
+  for (let i = 0; i < parentB.length; i++) {
+    if (!child.includes(parentB[i])) {
+      child.push(parentB[i]);
+    }
+  }
+
+  return child;
+}
+
+
+// Define the function to perform mutation on a subject order
+function mutate(order) {
+if (Math.random() < MUTATION_RATE) {
+// Choose two random points to swap
+let indexA = d3.randInt(0, subjects.length-1);
+let indexB = d3.randInt(0, subjects.length-1);
+// Swap the two points
+let temp = order[indexA];
+order[indexA] = order[indexB];
+order[indexB] = temp;
+}
+return order;
+}
+
+// Run the genetic algorithm for the specified number of generations
+for (let i = 0; i < NUM_GENERATIONS; i++) {
+generation();
+}
+
+// Find the best subject order
+let bestOrder = fitnessScores[0].order;
+let bestDistance = totalDistance(bestOrder);
+
+// Print the best subject order and distance
+console.log("Best subject order:", bestOrder);
+console.log("Best distance:", bestDistance);
+
+// Display the timetable using D3.js
+let table = d3.select("#timetable")
+.append("table")
+.attr("border", "1")
+.style("border-collapse", "collapse")
+.style("font-family", "sans-serif")
+.style("font-size", "14px");
+
+// Add the header row
+let headerRow = table.append("tr");
+headerRow.append("th").text("Time/Day");
+for (let i = 0; i < subjects.length; i++) {
+headerRow.append("th").text(subjects[bestOrder[i]]);
+}
+
+// Add the rows for each time slot
+let times = ["9:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-1:00"];
+for (let i = 0; i < times.length; i++) {
+let row = table.append("tr");
+row.append("td").text(times[i]);
+for (let j = 0; j < subjects.length; j++) {
+let cell = row.append("td");
+if (bestOrder[j] === i) {
+cell.text(faculty[subjects[bestOrder[j]]][0].name);
+}
+}
+}
+</script>
+
+</body>
+</html> 
